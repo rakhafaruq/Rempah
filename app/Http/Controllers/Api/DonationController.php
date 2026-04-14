@@ -1,0 +1,87 @@
+<?php
+
+// app/Http/Controllers/Api/DonationController.php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\Donation;
+use Illuminate\Http\Request;
+
+class DonationController extends Controller
+{
+    public function index(Request $request)
+    {
+        // auto expire
+        Donation::where('status', 'tersedia')
+            ->where('pickup_deadline', '<', now())
+            ->update(['status' => 'expired']);
+
+        $query = Donation::with('donor');
+
+        if ($request->status) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->search) {
+            $query->where('title', 'like', '%' . $request->search . '%');
+        }
+
+        return response()->json(
+            $query->latest()->get()->map(function ($donation) {
+                return [
+                    'id' => $donation->id,
+                    'title' => $donation->title,
+                    'description' => $donation->description,
+                    'location' => $donation->location,
+                    'status' => $donation->status,
+                    'pickup_deadline' => $donation->pickup_deadline,
+                    'photo_url' => $donation->photo_path
+                        ? asset('storage/' . $donation->photo_path)
+                        : null,
+                ];
+            })
+        );
+    }
+    public function store(Request $request)
+    {
+        $user = auth()->user();
+
+        if ($user->role !== 'donatur') {
+            return response()->json(['message' => 'Hanya donatur'], 403);
+        }
+
+        $request->validate([
+            'title' => 'required',
+            'location' => 'required',
+            'pickup_deadline' => 'required|date',
+            'total_portion' => 'required|integer|min:1',
+            'photo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048'
+        ]);
+
+        $donor = $user->donor;
+
+        $photoPath = null;
+
+        if ($request->hasFile('photo')) {
+            $photoPath = $request->file('photo')->store('donations', 'public');
+        }
+
+        $donation = \App\Models\Donation::create([
+            'title' => $request->title,
+            'description' => $request->description,
+            'donor_id' => $donor->id,
+            'location' => $request->location,
+            'pickup_deadline' => $request->pickup_deadline,
+            'total_portion' => $request->total_portion,
+            'remaining_portion' => $request->total_portion,
+            'status' => 'tersedia',
+            'photo_path' => $photoPath
+        ]);
+
+        return response()->json([
+            'message' => 'Donasi berhasil dibuat',
+            'data' => $donation
+        ]);
+    }
+}
