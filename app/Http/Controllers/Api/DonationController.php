@@ -17,7 +17,7 @@ class DonationController extends Controller
             ->where('pickup_deadline', '<', now())
             ->update(['status' => 'expired']);
 
-        $query = Donation::with('donor');
+        $query = Donation::with('donor.user');
 
         if ($request->status) {
             $query->where('status', $request->status);
@@ -36,9 +36,15 @@ class DonationController extends Controller
                     'location' => $donation->location,
                     'status' => $donation->status,
                     'pickup_deadline' => $donation->pickup_deadline,
+                    'total_portion' => $donation->total_portion,
                     'photo_url' => $donation->photo_path
                         ? asset('storage/' . $donation->photo_path)
                         : null,
+                    'donor' => $donation->donor ? [
+                        'user' => [
+                            'name' => $donation->donor->user->name ?? 'Anonim'
+                        ]
+                    ] : null,
                 ];
             })
         );
@@ -83,5 +89,67 @@ class DonationController extends Controller
             'message' => 'Donasi berhasil dibuat',
             'data' => $donation
         ]);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $user = auth()->user();
+
+        if ($user->role !== 'donatur') {
+            return response()->json(['message' => 'Hanya donatur'], 403);
+        }
+
+        $donation = Donation::findOrFail($id);
+
+        if ($donation->donor_id !== $user->donor->id) {
+            return response()->json(['message' => 'Tidak diizinkan'], 403);
+        }
+
+        $request->validate([
+            'title' => 'required',
+            'location' => 'required',
+            'pickup_deadline' => 'required|date',
+            'total_portion' => 'required|integer|min:1',
+            'photo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048'
+        ]);
+
+        $dataToUpdate = [
+            'title' => $request->title,
+            'description' => $request->description,
+            'location' => $request->location,
+            'pickup_deadline' => $request->pickup_deadline,
+            'total_portion' => $request->total_portion,
+        ];
+
+        if ($request->hasFile('photo')) {
+            $photoPath = $request->file('photo')->store('donations', 'public');
+            $dataToUpdate['photo_path'] = $photoPath;
+        }
+
+        $donation->update($dataToUpdate);
+
+        return response()->json([
+            'message' => 'Donasi berhasil diperbarui',
+            'data' => $donation
+        ]);
+    }
+
+    public function destroy($id)
+    {
+        $user = auth()->user();
+
+        if ($user->role !== 'donatur') {
+            return response()->json(['message' => 'Hanya donatur'], 403);
+        }
+
+        $donation = Donation::findOrFail($id);
+
+        if ($donation->donor_id !== $user->donor->id) {
+            return response()->json(['message' => 'Tidak diizinkan'], 403);
+        }
+
+        $donation->delete();
+
+        return response()->json(['message' => 'Donasi berhasil dihapus']);
     }
 }

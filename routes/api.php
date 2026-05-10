@@ -25,6 +25,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Donatur
     Route::post('/donations', [DonationController::class, 'store']);
     Route::get('/donor/dashboard', [DonorController::class, 'dashboard']);
+    Route::get('/donor/donations', [DonorController::class, 'myDonations']);
+    Route::post('/donations/{id}', [DonationController::class, 'update']);
+    Route::delete('/donations/{id}', [DonationController::class, 'destroy']);
 
     // Relawan
     Route::post('/claim/{donation_id}', [ClaimController::class, 'claim']);

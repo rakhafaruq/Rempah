@@ -20,14 +20,14 @@ class VolunteerController extends Controller
         $totalKlaim = Claim::where('volunteer_id', $user->id)->count();
 
         $klaimAktif = Claim::where('volunteer_id', $user->id)
-            ->where('status', 'diklaim')
-            ->with('donation')
+            ->where('status', 'claimed')
+            ->with('donation.donor.user')
             ->latest()
             ->get();
 
         $riwayat = Claim::where('volunteer_id', $user->id)
-            ->where('status', 'selesai')
-            ->with(['donation', 'distribution'])
+            ->where('status', 'distributed')
+            ->with(['donation.donor.user', 'distribution'])
             ->latest()
             ->limit(10)
             ->get();
