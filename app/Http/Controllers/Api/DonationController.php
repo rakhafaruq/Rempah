@@ -24,7 +24,11 @@ class DonationController extends Controller
         }
 
         if ($request->search) {
-            $query->where('title', 'like', '%' . $request->search . '%');
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('title', 'like', '%' . $searchTerm . '%')
+                ->orWhere('location', 'like', '%' . $searchTerm . '%');
+            });
         }
 
         return response()->json(
