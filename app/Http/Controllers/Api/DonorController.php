@@ -21,12 +21,18 @@ class DonorController extends Controller
 
         $totalDonasi = $donor->donations()->count();
 
-        $distributions = Distribution::with('claim.donation')
+        $distributions = Distribution::with(['claim.donation', 'claim.volunteer'])
             ->whereHas('claim.donation', function ($q) use ($donor) {
                 $q->where('donor_id', $donor->id);
             })
             ->latest()
-            ->get();
+            ->get()
+            ->map(function ($dist) {
+                if ($dist->photo_path) {
+                    $dist->photo_path = asset('storage/' . $dist->photo_path);
+                }
+                return $dist;
+            });
 
         return response()->json([
             'total_donasi' => $totalDonasi,

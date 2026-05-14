@@ -125,6 +125,10 @@ class DonationController extends Controller
             'total_portion' => $request->total_portion,
         ];
 
+        if ($donation->status === 'expired' && strtotime($request->pickup_deadline) > time()) {
+            $dataToUpdate['status'] = 'tersedia';
+        }
+
         if ($request->hasFile('photo')) {
             $photoPath = $request->file('photo')->store('donations', 'public');
             $dataToUpdate['photo_path'] = $photoPath;
